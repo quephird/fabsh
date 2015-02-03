@@ -1,3 +1,5 @@
+import Control.Exception (IOException, try)
+
 import Data.List.Split (splitOn)
 
 import System.Directory (setCurrentDirectory)
@@ -10,18 +12,19 @@ data Command
   | Exit
   | Set String String
   | PosixCommand String [String]
-  | Echo [String]
   | Unknown
-
 
 exec :: Command -> IO()
 exec (Cd newDir) = setCurrentDirectory newDir
 exec Exit        = exitSuccess
 exec (Set k v)   = setEnv k v
 exec (PosixCommand cmd args) = do
-                                 (_, _, _, procHandle) <- createProcess $ proc cmd args
-                                 exitCode <- waitForProcess procHandle
-                                 return ()
+                                 result <- try $ createProcess $ proc cmd args 
+                                 case result of
+                                   Left ex                     -> putStrLn $ show (ex :: IOException)
+                                   Right (_, _, _, procHandle) -> do
+                                                                    exitCode <- waitForProcess procHandle
+                                                                    return ()
 exec _  = putStrLn "I DON'T KNOW WHAT THAT MEANS!"
 
 
@@ -47,3 +50,4 @@ shell =
 main = do
   putStrLn "Welcome to the Fab Shell!!!"
   shell
+
